@@ -1,0 +1,8 @@
+# 忽略 DBeaver 和其他 IDE 自動產生的設定檔
+.dbeaver/
+.metadata/
+settings/
+
+# 忽略 DBeaver 在 SQL learn 資料夾中產生的檔案
+/SQL learn/project
+/SQL learn/Scripts/
