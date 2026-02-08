@@ -116,6 +116,201 @@ HAVING
  */
 
 
+# -- 練習 --
+# 1. 找出單筆支付金額最高的那筆紀錄，它的訂單 ID、付款方式和金額各是多少？」
+# 對應表格：olist_order_payments
+
+# (1)找出單筆支付金額最高的那筆紀錄
+SELECT
+	MAX(payment_value)
+FROM
+	olist_order_payments ;
+# (2)在(1)情況下，它的訂單 ID、付款方式和金額
+SELECT
+	order_id,
+	payment_type,
+	payment_value
+FROM
+	olist_order_payments
+WHERE
+	payment_value = (
+	SELECT
+		MAX(payment_value)
+	FROM
+		olist_order_payments
+    );
+
+
+# 2. 'credit_card', 'boleto', 'voucher' 等每種付款方式中，哪一種的平均支付金額是最低的？」
+# 對應表格：olist_order_payments
+SELECT
+	oop.payment_type ,
+	SUM(oop.payment_value)
+FROM
+	olist_order_payments oop
+GROUP BY
+	oop.payment_type
+ORDER BY
+	SUM(oop.payment_value)
+LIMIT 1 ;
+
+
+# 3. 哪個產品類別 (product_category_name) 的總銷售額 (SUM(price)) 是最高的？
+# 對應表格：olist_order_items, olist_products
+SELECT
+	op.product_category_name,
+	SUM(ooi.price) 總銷售額
+FROM
+	olist_order_items ooi
+JOIN olist_products op ON
+	ooi.product_id = op.product_id
+GROUP BY
+	op.product_category_name
+ORDER BY
+	總銷售額 DESC
+LIMIT 1 ;
+
+
+# 4. 哪個州 (seller_state) 的賣家，他們售出商品的平均運費 (AVG(freight_value)) 是最高的？
+# 對應表格：olist_order_items, olist_sellers
+SELECT
+	os.seller_state,
+	AVG(ooi.freight_value) 平均運費
+FROM
+	olist_order_items ooi
+JOIN olist_sellers os ON
+	ooi.seller_id = os.seller_id
+GROUP BY
+	os.seller_state
+ORDER BY
+	平均運費 DESC
+LIMIT 1 ;
+
+
+# 5. 哪些付款方式 (payment_type)，它們的平均支付金額，高於『所有付款方式的總平均值』？
+# 對應表格：olist_order_payments
+
+# (1)所有付款方式的總平均值
+SELECT
+	AVG(oop.payment_value)
+FROM
+	olist_order_payments oop ;
+# (2)付款方式 (payment_type)的平均支付金額 > (1)
+SELECT
+	oop1.payment_type,
+	AVG(oop1.payment_value) 平均支付金額
+FROM
+	olist_order_payments oop1
+GROUP BY
+	oop1.payment_type
+HAVING
+	平均支付金額 > (
+	SELECT
+		AVG(oop.payment_value)
+	FROM
+		olist_order_payments oop
+) ;
+
+
+# 6. 從 olist_sellers (賣家總表) 中，找出所有至少在 olist_order_items (訂單商品表) 中出現過的賣家，並列出他們的城市和州。
+# 對應表格：olist_order_items, olist_sellers
+
+# (1)至少在 olist_order_items (訂單商品表) 中出現過的賣家
+SELECT
+	DISTINCT ooi.seller_id
+FROM
+	olist_order_items ooi ;
+# (2)在(1)篩選下出現過的賣家，並列出他們的城市和州
+SELECT
+	os.seller_id,
+	os.seller_city,
+	os.seller_state
+FROM
+	olist_sellers os
+WHERE
+	os.seller_id IN (
+	SELECT
+			DISTINCT ooi.seller_id
+	FROM
+			olist_order_items ooi 
+) ;
+
+
+# 7. 找出「平均運費最低」的那個「產品類別」中，最貴的商品單價是多少
+# 對應表格：olist_order_items, olist_products
+
+# (1)找出『平均運費 (AVG(freight_value)) 最低』的那個產品類別 (product_category_name)
+SELECT
+	op2.product_category_name
+FROM
+	olist_order_items ooi2
+JOIN olist_products op2 ON
+	ooi2.product_id = op2.product_id
+GROUP BY
+	op2.product_category_name
+ORDER BY
+	AVG(ooi2.freight_value)
+LIMIT 1 ;
+
+# (2)查詢(1)類別的最高商品單價 (MAX(price)) 是多少？
+SELECT
+	op.product_category_name ,
+	MAX(ooi.price)
+FROM
+	olist_order_items ooi
+JOIN olist_products op ON
+	ooi.product_id = op.product_id
+WHERE
+	op.product_category_name = (
+	SELECT
+			op2.product_category_name
+	FROM
+			olist_order_items ooi2
+	JOIN olist_products op2 ON
+			ooi2.product_id = op2.product_id
+	GROUP BY
+			op2.product_category_name
+	ORDER BY
+			AVG(ooi2.freight_value)
+	LIMIT 1 
+)
+GROUP BY
+	op.product_category_name ; -- 因為主查詢用了 MAX()，所以需要 GROUP BY
+
+
+# 8. 找出 Olist 平台上總銷售額 (SUM(price)) 最高的那個賣家 (seller_id)，然後查詢他所在的城市和州。
+# 對應表格：olist_order_items, olist_sellers
+	
+# (1)Olist 平台上總銷售額 (SUM(price)) 最高的那個賣家 (seller_id)
+SELECT
+	ooi.seller_id
+FROM
+	olist_order_items ooi
+GROUP BY
+	ooi.seller_id
+ORDER BY
+	SUM(ooi.price) DESC
+LIMIT 1 ;
+
+# (2)查詢(1)所在的城市和州
+SELECT
+	os.seller_city,
+	os.seller_state
+FROM
+	olist_sellers os
+WHERE
+	os.seller_id = (
+	SELECT
+		ooi.seller_id
+	FROM
+		olist_order_items ooi
+	GROUP BY
+		ooi.seller_id
+	ORDER BY
+		SUM(ooi.price) DESC
+	LIMIT 1
+) ;
+	
 
 
 
